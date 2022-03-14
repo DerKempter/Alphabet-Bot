@@ -1,16 +1,58 @@
 import os
 import discord
+from discord.ext import commands
+from discord.commands import Option
+
 import re
 
 import mwclient
 
 from DBHandler import DBHandler
 
-token = os.environ['TOKEN']
+bot_token = os.environ['TOKEN']
 
-client = discord.Client()
+client = commands.Bot(prefix='!')
+# slash = SlashCommand(client, sync_commands=True)
 
 dbHandler = DBHandler()
+guilds = [775065533518708738]
+
+
+@client.slash_command(guild_ids=guilds, description="Beginn Challenge. ")
+async def start(ctx, 
+								order: Option(bool, "Order `A to Z` or `Z to A`")
+							 ):
+    userId = ctx.author.id
+    if dbHandler.check_if_key_exists(userId):
+        await ctx.respond(f"You already registered for the Challenge. View your progress with /TBD")
+    else:
+    		userName = ctx.author.name
+    		dummy_dict = dbHandler.generate_json_dummy(userId, order)
+    		dbHandler.add_key_value_pair(userId, dummy_dict)
+    		await ctx.respond(f"user {userName} with Id {userId} has been saved!")
+
+@client.slash_command(guild_ids=guilds, description="display all Champs in alphabetical order")
+async def show_champs(ctx):
+		champs = grab_all_champions()
+		message_template = ""
+		for champion in champs:
+			message_template += champion
+		await ctx.respond(message_template)
+
+@client.slash_command(guild_ids=guilds, description="display current champ progression")
+async def current(ctx):
+		userId = ctx.author.id
+		if not dbHandler.check_if_key_exists(userId):
+				await ctx.respond('You have not yet started the challenge. Do so with `/start`')
+				return
+		value = dbHandler.get_key_value(userId)
+		currentChampId = value['currentChamp']
+		currentChampTries = value['champs'][str(currentChampId)]['tries']
+		currentChamp = dbHandler.champs[currentChampId - 1]
+		await ctx.respond(f"You're currently at {currentChamp} and have so far had {currentChampTries} Attemps at this Champion")
+
+@client.slash_command(guild_ids=guilds, description="Add one or multiple failed tries to the current or one of the next champs")
+async def add_try(ctx):
 
 
 @client.event
@@ -158,4 +200,4 @@ def grab_all_champions() -> []:
     return champs
 
 
-client.run(token)
+client.run(bot_token)

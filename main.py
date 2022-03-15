@@ -1,5 +1,4 @@
 import os
-import discord
 from discord.ext import commands
 from discord.commands import Option
 
@@ -11,8 +10,7 @@ from DBHandler import DBHandler
 
 bot_token = os.environ['TOKEN']
 
-client = commands.Bot(prefix='!')
-# slash = SlashCommand(client, sync_commands=True)
+client = commands.Bot()
 
 dbHandler = DBHandler()
 guilds = [775065533518708738]
@@ -51,9 +49,53 @@ async def current(ctx):
 		currentChamp = dbHandler.champs[currentChampId - 1]
 		await ctx.respond(f"You're currently at {currentChamp} and have so far had {currentChampTries} Attemps at this Champion")
 
-@client.slash_command(guild_ids=guilds, description="Add one or multiple failed tries to the current or one of the next champs")
-async def add_try(ctx):
+@client.slash_command(guild_ids=guilds, description="Add or remove one or multiple failed attempts to the current or one of the next champs")
+async def add_remove_attempts(ctx,
+									amount: Option(int, "the Amount of attempts to add or remove to the champion [default: 1]", min_value=-10, max_value=10),
+									skip: Option(int, "The amount of champs to skip from the current [default: 0]")):
+		value = dbHandler.get_key_value(ctx.author.id)
+		currentChampId = value['currentChamp']
+		actualChampId = value['currentChamp'] + skip
+		value['champs'][str(actualChampId)]['tries'] += int(amount)
+		currentChampTries = value['champs'][str(currentChampId)]['tries']
+		actualChampTries = value['champs'][str(actualChampId)]['tries']
+		currentChamp = dbHandler.champs[currentChampId - 1]
+		actualChamp = dbHandler.champs[actualChampId - 1]
 
+		if skip > 1:
+				await ctx.respond(f"You've added another attempts to {actualChamp} and are now at {actualChampTries} Attempts at this Champion")
+		await ctx.respond(f"You're currently at {currentChamp} and have now had {currentChampTries} Attemps at this Champion")
+		return
+
+@client.slash_command(guild_ids=guilds, description="Add a final attempts to a champion and mark it as finished")
+async def finish_champion(ctx,
+												 skip: Option(int, "The amount of champs to skip from the current [default: 0]")):
+		value = dbHandler.get_key_value(userId)
+		currentChampId = value['currentChamp']
+		actualChampId = value['currentChamp'] + skip
+		currentChamp = dbHandler.champs[currentChampId - 1]
+		currentChamp = dbHandler.champs[actualChampId - 1]
+		value['champs'][str(actualChampId)]['tries'] += 1
+		value['champs'][str(actualChampId)]['finished'] = True
+		currentChampTries = value['champs'][str(currentChampId)]['tries']
+		actualChampTries = value['champs'][str(actualChampId)]['tries']
+		AtoZ = value['isAtoZ']
+
+		if skip == 0:
+				nextChampId = CurrentChampId
+		else:
+				nextChampId = get_next_champ(dbHandler.champs, AtoZ, currentChampId, userId)
+		if nextChampId == 0 or nextChampId == len(dbHandler.champs) + 1:
+				await ctx.respond('Congratulations! You have completed the challange!')
+				return
+		else:
+				value['currentChamp'] = nextChampId
+				nextChamp = dbHandler.champs[nextChampId - 1]
+				nextChampTries = value['champs'][str(nextChampId)]['tries']
+
+		await ctx.respond(f"You're have finished {actualChamp} with {actualChampTries} Attemps.")
+		await ctx.respond(f"Your new Champion is {nextChamp} with currently {nextChampTries} Attemps.")
+		
 
 @client.event
 async def on_ready():
@@ -68,102 +110,9 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello')
-
-    if message.content.startswith('$Add me'.lower()) and 'A to Z'.lower(
-    ) in message.content and not dbHandler.check_if_key_exists(userId):
-        userName = message.author.name
-        dummy_dict = dbHandler.generate_json_dummy(userId, True)
-        dbHandler.add_key_value_pair(userId, dummy_dict)
-        await message.channel.send(
-            f"user {userName} with Id {userId} has been saved!")
-
-    if message.content.startswith('$Add me'.lower()) and 'Z to A'.lower(
-    ) in message.content and not dbHandler.check_if_key_exists(userId):
-        userName = message.author.name
-        dummy_dict = dbHandler.generate_json_dummy(userId, False)
-        dbHandler.add_key_value_pair(userId, dummy_dict)
-        await message.channel.send(
-            f"user {userName} with Id {userId} has been saved!")
-
-    if message.content.startswith('$show Champions'):
-        champs = grab_all_champions()
-        message_template = ""
-        for champion in champs:
-            message_template += champion
-        await message.channel.send(message_template)
-
     if message.content.startswith('$show me'):
         value = dbHandler.get_key_value(userId)
         print(value)
-
-    if message.content.startswith('$Current'.lower()):
-        if not dbHandler.check_if_key_exists(userId):
-            await message.channel.send(
-                'You have not yet started the challenge. Do so with `$Add me` and either `A to Z` or `Z to A`'
-            )
-            return
-        value = dbHandler.get_key_value(userId)
-        currentChampId = value['currentChamp']
-        currentChampTries = value['champs'][str(currentChampId)]['tries']
-        currentChamp = dbHandler.champs[currentChampId - 1]
-        await message.channel.send(
-            f"You're currently at {currentChamp} and have so far had " +
-            f"{currentChampTries} Attemps at this Champion")
-
-    if message.content.startswith('$Try'.lower()):
-        regex_str = r'#([0-9]{1})'
-        finds = re.findall(regex_str, message.content)
-        if finds is not None:
-            tries = finds[0]
-        else:
-            tries = 1
-        value = dbHandler.get_key_value(userId)
-        currentChampId = value['currentChamp']
-        value['champs'][str(currentChampId)]['tries'] += int(tries)
-        currentChampTries = value['champs'][str(currentChampId)]['tries']
-        currentChamp = dbHandler.champs[currentChampId - 1]
-        await message.channel.send(
-            f"You're currently at {currentChamp} and have now had " +
-            f"{currentChampTries} Attemps at this Champion")
-
-    if message.content.startswith('$Rem Try'.lower()):
-        value = dbHandler.get_key_value(userId)
-        currentChampId = value['currentChamp']
-        value['champs'][str(currentChampId)]['tries'] -= 1
-        currentChampTries = value['champs'][str(currentChampId)]['tries']
-        currentChamp = dbHandler.champs[currentChampId - 1]
-        await message.channel.send(
-            f"You're currently at {currentChamp} and have now had " +
-            f"{currentChampTries} Attemps at this Champion")
-
-    if message.content.startswith('$Finished'.lower()):
-        value = dbHandler.get_key_value(userId)
-        currentChampId = value['currentChamp']
-        currentChamp = dbHandler.champs[currentChampId - 1]
-        value['champs'][str(currentChampId)]['tries'] += 1
-        value['champs'][str(currentChampId)]['finished'] = True
-        currentChampTries = value['champs'][str(currentChampId)]['tries']
-        AtoZ = value['isAtoZ']
-
-        nextChampId = get_next_champ(dbHandler.champs, AtoZ, currentChampId,
-                                     userId)
-        if nextChampId == 0 or nextChampId == len(dbHandler.champs) + 1:
-            await message.channel.send(
-                'Congratulations! You have completed the challange!')
-            return
-        else:
-            value['currentChamp'] = nextChampId
-            nextChamp = dbHandler.champs[nextChampId - 1]
-            nextChampTries = value['champs'][str(nextChampId)]['tries']
-
-        await message.channel.send(
-            f"You're have finished {currentChamp} with {currentChampTries} Attemps."
-        )
-        await message.channel.send(
-            f"Your new Champion is {nextChamp} with currently {nextChampTries} Attemps."
-        )
 
     if message.content.startswith('$REMOVE ME NOW'):
         dbHandler.remove_key_value_pair(userId)

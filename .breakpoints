@@ -1,11 +1,33 @@
 {
   "files": {
+    "DBHandler.py": [
+      {
+        "id": "e0ae9944-723c-4bcb-a81e-7021bfaa9f87",
+        "line": 64,
+        "version": 3292,
+        "index": 1726
+      },
+      {
+        "id": "85a83cf9-5503-4d13-aad2-b842aad3eec2",
+        "line": 69,
+        "version": 3292,
+        "index": 1895
+      }
+    ],
     "main.py": [
       {
-        "id": "275558da-e8cd-4d61-846c-650eca24f647",
-        "line": 105,
-        "version": 6356,
-        "index": 4297
+        "id": "e791d168-ccaa-43dc-bc06-705ac8d28f08",
+        "line": 11,
+        "version": 9762,
+        "index": 162
+      }
+    ],
+    "venv/lib/python3.8/site-packages/interactions/client/bot.py": [
+      {
+        "id": "21b42b44-f762-4b8a-b11a-2f6770e6d5ff",
+        "line": 104,
+        "version": 1,
+        "index": 4378
       }
     ]
   }
